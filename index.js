@@ -1,23 +1,31 @@
 const fs = require('fs');
 const path = require('path');
-const Polka = require('polka');
-const send = require('@polka/send-type');
-const jimp = require('jimp');
+const os = require('os');
 const { exec } = require('child_process');
+const Polka = require('polka');
+const jimp = require('jimp');
+const log = require('npmlog');
+
+const dataFiles = {
+    lastFrame: path.join(__dirname, 'data', 'lastFrame.jpg'),
+    witsVideo: path.join(__dirname, 'data', 'witsVideo.mkv'),
+    witsAudio: path.join(__dirname, 'data', 'witsAudio.mp4'),
+    customFont: path.join(
+        __dirname,
+        'data',
+        'font',
+        'Spongeboytt2Regular-ALLjx.ttf.fnt'
+    ),
+};
 
 const polka = Polka();
-const image = jimp.read(path.join(__dirname, 'blank.jpg'));
-const font = jimp.loadFont(
-    path.join(__dirname, 'font', 'Spongeboytt2Regular-ALLjx.ttf.fnt')
-);
-const font2 = jimp.loadFont(
-    jimp.FONT_SANS_32_WHITE
-)
-const baseDir = '/tmp/battleOfWits/wits.mp4'
+const spongebobFont = jimp.loadFont(dataFiles.customFont);
+const sansSerifFont = jimp.loadFont(jimp.FONT_SANS_32_WHITE);
+const workDir = path.join(os.tmpdir(), 'battle-of-wits');
 
-async function sh(cmd) {
-    return new Promise(function (resolve, reject) {
-        exec(cmd, (err, stdout, stderr) => {
+const sh = async (command) => {
+    return new Promise((resolve, reject) => {
+        exec(command, (err, stdout, stderr) => {
             if (err) {
                 reject(err);
             } else {
@@ -25,42 +33,40 @@ async function sh(cmd) {
             }
         });
     });
-}
+};
 
-polka.get('wits.mp4', async (req, res) => {
-    if (req.headers['user-agent'] === "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0") {
-    //    if (req.headers['cf-worker']) {
-        // let it load forever
-        console.log('Discord Media Proxy was here')
-        console.log(req.headers);
-        // res.statusCode = 302;
-        // res.setHeader('Location', `https://cdn.discordapp.com/attachments/353018352580689930/746452639566528662/spark.png`);
-        res.end()
-        return;
+// Good enough randomness, not like we're storing extremely sensitive data here
+// Mostly just to prevent collisions
+const idRandomLength = 9;
+const digits = '1234567890'.split('');
+let incrementor = 0;
+const idGen = () => {
+    let randomPart = '';
+    for (let i = 0; i < idRandomLength; i += 1) {
+        const index = Math.floor(Math.random() * digits.length);
+        randomPart += digits[index];
     }
-    
-    const randPrefix = `${Date.now()}${Math.floor(Math.random() * 99999)}`;
-    const files = {
-        lastFrame: path.join(baseDir, `${randPrefix}_lastFrame.png`),
-        imageMkv: path.join(baseDir, `${randPrefix}_imageMkv.mkv`),
-        merge: path.join(baseDir, `${randPrefix}_merge.txt`),
-        done: path.join(baseDir, `${randPrefix}.mp4`),
-    };
-    const modImage = await jimp.read(path.join(__dirname, 'blank.jpg'));
-    modImage.print(
-        await font,
+    const outString = `${Date.now()}${randomPart}${incrementor}`;
+    incrementor += 1;
+    return outString;
+};
+
+const drawText = async (image, ipAddress) => {
+    // not too proud of you prettier...
+    image.print(
+        await spongebobFont,
         0,
         0,
-        {   
-            text: req.headers['x-real-ip'],
+        {
+            text: ipAddress,
             alignmentX: jimp.HORIZONTAL_ALIGN_CENTER,
             alignmentY: jimp.VERTICAL_ALIGN_MIDDLE,
         },
         1920,
         1080
     );
-    modImage.print(
-        await font2,
+    image.print(
+        await sansSerifFont,
         0,
         0,
         {
@@ -71,8 +77,8 @@ polka.get('wits.mp4', async (req, res) => {
         1450,
         1000
     );
-    modImage.print(
-        await font2,
+    image.print(
+        await sansSerifFont,
         0,
         0,
         {
@@ -83,45 +89,82 @@ polka.get('wits.mp4', async (req, res) => {
         1450,
         960
     );
-    modImage.write(files.lastFrame);
+    return image;
+};
 
+polka.get('/wits.mp4', async (req, res) => {
+    const ipAddress = req.headers['x-real-ip'];
+    const requestId = idGen();
+    if (!req.headers['user-agent']) {
+        res.statusCode = 400;
+        res.end('no user-agent provided');
+    }
+    log.http('/wits.mp4', requestId, 'New request');
+    const fileNames = {
+        lastFrame: path.join(workDir, `${requestId}_lastFrame.png`),
+        imageMkv: path.join(workDir, `${requestId}_imageMkv.mkv`),
+        merge: path.join(workDir, `${requestId}_merge.txt`),
+        done: path.join(workDir, `${requestId}.mp4`),
+    };
+    // prevent video from embedding in Discord, so people have to click the link.
+    if (
+        req.headers['user-agent'] ===
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0' ||
+        req.headers['user-agent'].includes('DiscordBot') ||
+        req.headers['cf-worker']
+    ) {
+        log.http('/wits.mp4', requestId, 'Blocked Discord');
+        res.statusCode = 403;
+        res.end();
+        return;
+    }
+    let image = await jimp.read(dataFiles.lastFrame);
+    log.http('/wits.mp4', requestId, 'Loaded image');
+    image = await drawText(image, ipAddress);
+    log.http('/wits.mp4', requestId, 'Rendered image');
+    image.write(fileNames.lastFrame);
+    log.http('/wits.mp4', requestId, 'Written image');
     await fs.promises.writeFile(
-        files.merge,
-        `file '/opt/battleOfWits/wits.mkv'\nfile '${randPrefix}_imageMkv.mkv'`
+        fileNames.merge,
+        `file ${dataFiles.witsVideo}\nfile '${requestId}_imageMkv.mkv'`
     );
+    log.http('/wits.mp4', requestId, 'Written ffmpeg merge file');
     await sh(
-        `ffmpeg -loop 1 -i ${files.lastFrame} -c:v libx264 -t 1 -pix_fmt yuv420p -vf scale=1920:1080 ${files.imageMkv} &&
-         ffmpeg -safe 0 -f concat -i ${files.merge} -i wits_audio.mp4 -map 0:v -map 1:a -c:v libx264 -preset superfast -crf 22 -c:a aac -movflags +faststart ${files.done} -y`
-    ).then(async () => {
-        let ua = ''
-        if (req.headers["user-agent"] === "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0") {
-            ua = 'DiscordMediaProxy'
-        } else {
-            ua = req.headers["user-agent"]
+        `ffmpeg -loop 1 -i ${fileNames.lastFrame} -c:v libx264 -t 1 -pix_fmt yuv420p -vf scale=1920:1080 ${fileNames.imageMkv}`
+    );
+    log.http('/wits.mp4', requestId, 'Written rendered last frames');
+    await sh(
+        `ffmpeg -safe 0 -f concat -i ${fileNames.merge} -i ${dataFiles.witsAudio} -map 0:v -map 1:a -c:v libx264 -preset superfast -crf 22 -c:a aac -movflags +faststart ${fileNames.done} -y`
+    );
+    log.http('/wits.mp4', requestId, 'Rendered final video');
+    res.statusCode = 302;
+    const scheme = req.headers['x-forwarded-proto'];
+    const host = req.headers['x-forwarded-host'];
+    res.setHeader('location', `${scheme}://${host}/wits.mp4/${requestId}.mp4`);
+    res.end();
+    log.http('/wits.mp4', requestId, 'Sent redirect');
+    Object.entries(fileNames).forEach((value) => {
+        if (value[0] !== 'done') {
+            fs.promises.unlink(value[1]);
         }
-        console.log(`${ua}`)
-        res.setHeader('X-Special-Thanks-To', 'github.com/mstrodl, helping with ffmpeg');
-        res.statusCode = 302;
-        res.setHeader('Location', `https://adryd.co/wits.mp4/${randPrefix}.mp4`)
-        res.end()
-        setTimeout(() => {
-            Object.entries(files).forEach((value) =>
-                fs.promises.unlink(value[1])
-            );
-        }, 1000*60);
     });
+    log.http('/wits.mp4', requestId, 'Deleted render files');
+    setTimeout(() => {
+        fs.promises.unlink(fileNames.done);
+        log.http('/wits.mp4', requestId, 'Deleted final video');
+    }, 1000 * 60);
 });
-
+// Wait for fonts and such to be loaded before accepting
+// http requests
 (async () => {
-    await image;
-    await font;
-    await font2
+    await spongebobFont;
+    await sansSerifFont;
     try {
-        await fs.promises.mkdir('/tmp/battleOfWits')
-        await fs.promises.mkdir('/tmp/battleOfWits/wits.mp4')
+        log.silly('init', 'creating work dir');
+        await fs.promises.mkdir(workDir);
     } catch (e) {
-        console.log('tmp exists')
+        log.verbose('init', 'workDir already exists, no need to create it');
     }
     polka.listen(6970);
-    console.log('Ready!');
+    log.info('init', 'Ready to outwit!');
 })();

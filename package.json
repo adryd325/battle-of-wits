@@ -1,25 +1,42 @@
 {
-  "name": "battleofwits",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/adryd325/battleOfWits.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/adryd325/battleOfWits/issues"
-  },
-  "homepage": "https://github.com/adryd325/battleOfWits#readme",
-  "dependencies": {
-    "@polka/redirect": "^1.0.0-next.0",
-    "@polka/send-type": "^0.5.2",
-    "jimp": "^0.14.0",
-    "polka": "^0.5.2"
-  }
+    "name": "battle-of-wits",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "lint:js": "eslint --ext .js --ignore-path .gitignore ."
+    },
+    "lint-staged": {
+        "*.{js}": "eslint"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "devDependencies": {
+        "eslint": "^7.6.0",
+        "eslint-config-airbnb-base": "^14.2.0",
+        "eslint-config-prettier": "^6.11.0",
+        "eslint-plugin-import": "^2.22.0",
+        "eslint-plugin-prettier": "^3.1.4",
+        "husky": "^4.2.5",
+        "lint-staged": "^10.2.11",
+        "prettier": "^2.0.5"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/adryd325/battle-of-wits.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/adryd325/battle-of-wits/issues"
+    },
+    "homepage": "https://adryd.co/wits.mp4",
+    "dependencies": {
+        "jimp": "^0.14.0",
+        "npmlog": "^4.1.2",
+        "polka": "^0.5.2"
+    }
 }
