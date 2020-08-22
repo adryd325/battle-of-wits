@@ -1,0 +1,25 @@
+{
+  "name": "battleofwits",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adryd325/battleOfWits.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adryd325/battleOfWits/issues"
+  },
+  "homepage": "https://github.com/adryd325/battleOfWits#readme",
+  "dependencies": {
+    "@polka/redirect": "^1.0.0-next.0",
+    "@polka/send-type": "^0.5.2",
+    "jimp": "^0.14.0",
+    "polka": "^0.5.2"
+  }
+}
