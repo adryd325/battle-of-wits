@@ -110,7 +110,7 @@ polka.get('/wits.mp4', async (req, res) => {
     if (
         req.headers['user-agent'] ===
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0' ||
-        req.headers['user-agent'].includes('DiscordBot') ||
+        req.headers['user-agent'].includes('Discordbot') ||
         req.headers['cf-worker']
     ) {
         log.http('/wits.mp4', requestId, 'Blocked Discord');
