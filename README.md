@@ -2,6 +2,8 @@
 **Show your friends you're the best in a BATTLE OF WITS!**  
 https://adryd.co/wits.mp4
 
+Now with GeoIP and Partial File support!
+
 ## Special thanks
 
 [@MStrodl](https://github.com/MStrodl): Initially helping me with ffmpeg commands.  
