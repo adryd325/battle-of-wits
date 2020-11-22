@@ -2,6 +2,8 @@
 // we're dealing with very few interactions, no need to go extreme
 // not like this is efficient enough to generate more than 3000 IDs per second
 
+const epoch = 1577836800000n;
+
 const randomBits = 10n;
 const sequenceBits = 12n;
 
