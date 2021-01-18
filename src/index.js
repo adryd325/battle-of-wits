@@ -62,6 +62,7 @@ const send = async (req, res, path, requestId, type) => {
 
 const handleRequest = async (req, res, type) => {
     const ipAddress = req.headers['x-real-ip'];
+    const cacheId = `${ipAddress}${type}`;
     const anonIp = crypto
         .createHash('md5')
         .update(ipAddress + salt)
@@ -122,8 +123,8 @@ const handleRequest = async (req, res, type) => {
         );
         return;
     }
-    if (Object.prototype.hasOwnProperty.call(activeRenders, ipAddress)) {
-        const previousRender = activeRenders[ipAddress];
+    if (Object.prototype.hasOwnProperty.call(activeRenders, cacheId)) {
+        const previousRender = activeRenders[cacheId];
         oldRequestId = previousRender.requestId;
         log.http(
             '/wits.mp4',
@@ -136,8 +137,8 @@ const handleRequest = async (req, res, type) => {
         // reset deletion timer
         clearTimeout(previousRender.deleteTimer);
         log.http('/wits.mp4', requestId, 'Delaying deletion for', oldRequestId);
-        activeRenders[ipAddress].deleteTimer = setTimeout(() => {
-            delete activeRenders[ipAddress];
+        activeRenders[cacheId].deleteTimer = setTimeout(() => {
+            delete activeRenders[cacheId];
             fs.promises.unlink(file);
             log.http('/wits.mp4', oldRequestId, 'Deleted final video');
             // having a 2nd request likely means a real person is cusing wits
@@ -146,12 +147,12 @@ const handleRequest = async (req, res, type) => {
         file = await render(requestId, ipAddress, req.headers, type);
 
         const deleteTimer = setTimeout(() => {
-            delete activeRenders[ipAddress];
+            delete activeRenders[cacheId];
             fs.promises.unlink(file);
             log.http('/wits.mp4', requestId, 'Deleted final video');
         }, 1000 * 60);
 
-        activeRenders[ipAddress] = {
+        activeRenders[cacheId] = {
             deleteTimer,
             requestId,
             file,
