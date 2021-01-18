@@ -11,11 +11,14 @@ const { workDir } = require('./constants');
 const polka = Polka();
 
 const activeRenders = {};
-const salt = "ajdfkadsfdashkfadskfyoahvyfohsjdakjfidlsdfaoidsahvoeorv";
-const twitterEmbed = fs.promises.readFile(__dirname + '/../data/wits.html', 'utf-8');
+const salt = 'ajdfkadsfdashkfadskfyoahvyfohsjdakjfidlsdfaoidsahvoeorv';
+const twitterEmbed = fs.promises.readFile(
+    `${__dirname}/../data/wits.html`,
+    'utf-8'
+);
 
-const send = async (req, res, path, requestId) => {
-    res.setHeader('Content-Type', 'video/mp4');
+const send = async (req, res, path, requestId, type) => {
+    res.setHeader('Content-Type', `video/${type}`);
     let stat;
     try {
         stat = await fs.promises.stat(path);
@@ -57,15 +60,19 @@ const send = async (req, res, path, requestId) => {
     }
 };
 
-polka.get('/wits.mp4', async (req, res) => {
+const handleRequest = async (req, res, type) => {
     const ipAddress = req.headers['x-real-ip'];
-    const anonIp = crypto.createHash('md5').update(ipAddress + salt).digest('base64');
+    const anonIp = crypto
+        .createHash('md5')
+        .update(ipAddress + salt)
+        .digest('base64');
     const requestId = generateId();
     let oldRequestId;
     let file;
 
-    log.http('/wits.mp4', `UA: ${req.headers["user-agent"]}`)
-    log.http('/wits.mp4', `IP: ${anonIp}`)
+    log.http('/wits.mp4', `UA: ${req.headers['user-agent']}`);
+    log.http('/wits.mp4', `IP: ${anonIp}`);
+    log.http('/wits.mp4', `EXT: ${type}`);
 
     log.http('/wits.mp4', requestId, `New request`);
     if (ipAddress === undefined) {
@@ -81,27 +88,20 @@ polka.get('/wits.mp4', async (req, res) => {
         return;
     }
     if (
-        req.headers['user-agent'] == 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0' || 
+        req.headers['user-agent'] ===
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:38.0) Gecko/20100101 Firefox/38.0' ||
         req.headers['user-agent'].includes('Discordbot')
     ) {
-        log.http(
-            '/wits.mp4',
-            requestId,
-            'Dropped request: Discord embed'
-        );
+        log.http('/wits.mp4', requestId, 'Dropped request: Discord embed');
         return;
     }
-    if (req.headers['user-agent'] === "Twitterbot/1.0") {
-        log.http(
-            '/wits.mp4',
-            requestId,
-            'Sending embed html'
-        );
+    if (req.headers['user-agent'] === 'Twitterbot/1.0') {
+        log.http('/wits.mp4', requestId, 'Sending embed html');
 
-        data = await twitterEmbed;
-        res.setHeader('content-type', 'text/html')
+        const data = await twitterEmbed;
+        res.setHeader('content-type', 'text/html');
         res.statusCode = 200;
-        res.end(data)
+        res.end(data);
         return;
     }
     if (
@@ -143,7 +143,7 @@ polka.get('/wits.mp4', async (req, res) => {
             // having a 2nd request likely means a real person is cusing wits
         }, 1000 * 60 * 10);
     } else {
-        file = await render(requestId, ipAddress, req.headers);
+        file = await render(requestId, ipAddress, req.headers, type);
 
         const deleteTimer = setTimeout(() => {
             delete activeRenders[ipAddress];
@@ -162,7 +162,15 @@ polka.get('/wits.mp4', async (req, res) => {
     if (oldRequestId !== undefined) {
         res.setHeader('X-Wits-Ref-Request-Id', oldRequestId);
     }
-    send(req, res, file, requestId);
+    send(req, res, file, requestId, type);
+};
+
+polka.get('/wits.mp4', (req, res) => {
+    handleRequest(req, res, 'mp4');
+});
+
+polka.get('/wits.webm', (req, res) => {
+    handleRequest(req, res, 'webm');
 });
 
 // Wait for fonts and such to be loaded before accepting
