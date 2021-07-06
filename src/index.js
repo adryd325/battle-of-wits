@@ -61,7 +61,7 @@ const send = async (req, res, path, requestId, type) => {
 };
 
 const handleRequest = async (req, res, type) => {
-    const ipAddress = req.headers['x-real-ip'];
+    const ipAddress = req.headers['x-wits-custom'] ?? req.headers['x-real-ip'];
     const cacheId = `${ipAddress}${type}`;
     const anonIp = crypto
         .createHash('md5')
