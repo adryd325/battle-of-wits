@@ -114,7 +114,7 @@ const handleRequest = async (req, res, type) => {
         req.headers['user-agent'].toLowerCase().includes('scrape') ||
         req.headers['user-agent'].toLowerCase().includes('archive')
     ) {
-        res.statusCode = 403;
+        res.statusCode = 418;
         res.end();
         log.http(
             '/wits.mp4',
